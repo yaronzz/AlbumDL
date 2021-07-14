@@ -76,3 +76,9 @@ This project exists thanks to all the people who contribute.
 - Need a Tidal-HIFI subscription. 
 - You should not use this method to distribute or pirate music.
 - It may be illegal to use this in your country, so be informed.
+
+## Developing
+
+pip3 uninstall tidal-dl
+pip3 install -r requirements.txt --user
+python3 setup.py install

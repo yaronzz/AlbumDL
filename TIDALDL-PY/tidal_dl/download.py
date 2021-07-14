@@ -54,11 +54,8 @@ def __getExtension__(url):
         return '.mp4'
     return '.m4a'
 
-def __getArtists__(array):
-    ret = []
-    for item in array:
-        ret.append(item.name)
-    return ret
+def __getArtists__(artists):
+    return ", ".join(map(lambda artist: artist.name, artists))
 
 def __parseContributors__(roleType, Contributors):
     if Contributors is None:
@@ -93,13 +90,25 @@ def __setMetaData__(track, album, filepath, contributors, lyrics):
     obj.title = track.title
     if not aigpy.string.isNull(track.version):
         obj.title += ' (' + track.version + ')'
-    obj.artist = __getArtists__(track.artists)
+    # required until https://github.com/AIGMix/AIGPY/pull/3/files
+    if '.mp4' in filepath or '.m4a' in filepath:
+        obj.artist = []
+        for artist in track.artists:
+            obj.artist.append(artist.name)
+    else:
+        obj.artist = __getArtists__(track.artists)
     obj.copyright = track.copyRight
     obj.tracknumber = track.trackNumber
     obj.discnumber = track.volumeNumber
     obj.composer = __parseContributors__('Composer', contributors)
     obj.isrc = track.isrc
-    obj.albumartist = __getArtists__(album.artists)
+    # required until https://github.com/AIGMix/AIGPY/pull/3/files
+    if '.mp4' in filepath or '.m4a' in filepath:
+        obj.albumartist = []
+        for artist in album.artists:
+            obj.albumartist.append(artist.name)
+    else:
+        obj.albumartist = __getArtists__(track.albumartist)
     obj.date = album.releaseDate
     obj.totaldisc = album.numberOfVolumes
     obj.lyrics = lyrics
@@ -136,7 +145,7 @@ def __stripPath__(path):
 # "{ArtistName}/{Flag} [{AlbumID}] [{AlbumYear}] {AlbumTitle}"
 def __getAlbumPath__(conf: Settings, album):
     base = conf.downloadPath + '/Album/'
-    artist = aigpy.path.replaceLimitChar(album.artists[0].name, '-')
+    artist = aigpy.path.replaceLimitChar(__getArtists__(album.artists), '-')
     # album folder pre: [ME][ID]
     flag = API.getFlag(album, Type.Album, True, "")
     if conf.audioQuality != AudioQuality.Master:
@@ -167,7 +176,7 @@ def __getAlbumPath__(conf: Settings, album):
 
 def __getAlbumPath2__(conf, album):
     # outputdir/Album/artist/
-    artist = aigpy.path.replaceLimitChar(album.artists[0].name, '-').strip()
+    artist = aigpy.path.replaceLimitChar(__getArtists__(album.artists), '-').strip()
     base = conf.downloadPath + '/Album/' + artist + '/'
 
     # album folder pre: [ME][ID]
@@ -211,7 +220,7 @@ def __getTrackPath__(conf: Settings, track, stream, album=None, playlist=None):
     if playlist is not None and conf.usePlaylistFolder:
         number = __getIndexStr__(track.trackNumberOnPlaylist)
     # artist
-    artist = aigpy.path.replaceLimitChar(track.artists[0].name, '-')
+    artist = aigpy.path.replaceLimitChar(__getArtists__(track.artists), '-')
     # title
     title = track.title
     if not aigpy.string.isNull(track.version):
@@ -258,7 +267,7 @@ def __getTrackPath2__(conf, track, stream, album=None, playlist=None):
     # get artist
     artist = ''
     if conf.artistBeforeTitle:
-        artist = aigpy.path.replaceLimitChar(track.artists[0].name, '-') + hyphen
+        artist = aigpy.path.replaceLimitChar(__getArtists__(track.artists), '-') + hyphen
     # get explicit
     explicit = "(Explicit)" if conf.addExplicitTag and track.explicit else ''
     # title
@@ -288,7 +297,7 @@ def __getVideoPath__(conf, video, album=None, playlist=None):
     # get artist
     artist = ''
     if conf.artistBeforeTitle:
-        artist = aigpy.path.replaceLimitChar(video.artists[0].name, '-') + hyphen
+        artist = aigpy.path.replaceLimitChar(__getArtists__(video.artists), '-') + hyphen
     # get explicit
     explicit = "(Explicit)" if conf.addExplicitTag and video.explicit else ''
     # title
@@ -366,7 +375,7 @@ def __downloadTrack__(conf: Settings, track:Track, album=None, playlist=None):
         contributors = API.getTrackContributors(track.id)
         lyrics = ''
         if conf.addLyrics:
-            lyrics = __getLyrics__(track.title, track.artists[0].name, conf.lyricsServerProxy)
+            lyrics = __getLyrics__(track.title, __getArtists__(track.artists), conf.lyricsServerProxy)
             
         __setMetaData__(track, album, path, contributors, lyrics)
         Printf.success(aigpy.path.getFileName(path))
